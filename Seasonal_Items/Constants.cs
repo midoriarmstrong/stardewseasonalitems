@@ -13,10 +13,13 @@
         public static string[] Spring =
         {
             "Anchovy",
+            "Ancient Fruit",
+            "Apricot",
             "Blue Jazz",
             "Carp",
             "Catfish",
             "Cauliflower",
+            "Cherry",
             "Coffee Bean",
             "Common Mushroom",
             "Daffodil",
@@ -46,6 +49,7 @@
 
         public static string[] Summer =
         {
+            "Ancient Fruit",
             "Blueberry",
             "Catfish",
             "Coffee Bean",
@@ -59,6 +63,8 @@
             "Hot Pepper",
             "Melon",
             "Octopus",
+            "Orange",
+            "Peach",
             "Pike",
             "Poppy",
             "Pufferfish",
@@ -89,7 +95,9 @@
             "Albacore",
             "Amaranth",
             "Anchovy",
+            "Ancient Fruit",
             "Angler",
+            "Apple",
             "Artichoke",
             "Beet",
             "Blackberry",
@@ -104,6 +112,7 @@
             "Fairy Rose",
             "Grape",
             "Hazelnut",
+            "Pomegranate",
             "Pumpkin",
             "Red Mushroom",
             "Red Snapper",
