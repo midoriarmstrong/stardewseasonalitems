@@ -1,5 +1,5 @@
 ﻿{
-   "Name": "Seasonal Items",
+   "Name": "Out of Season Bonuses",
    "Author": "Midori Armstrong",
    "Version": {
       "MajorVersion": 1,
@@ -7,7 +7,7 @@
       "PatchVersion": 0,
       "Build": null
    },
-   "Description": "Increases sell price of out-of-season crops",
+   "Description": "Adds bonuses to sell prices and friendship for items that are out of season",
    "UniqueID": "midoriarmstrong.seasonalitems",
    "EntryDll": "SeasonalItems.dll"
 }

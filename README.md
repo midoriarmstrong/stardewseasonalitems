@@ -1,5 +1,9 @@
-# Seasonal Items
-Adjusts sell prices of seasonal items in Stardew Valley based on whether they are in season.
+# Out of Season Bonuses
+Adds bonuses to sell prices and friendship points when gifting for items that are out of season.
+
+## Features
+* Increases sell prices by 10% the season after item is in season, 15% two seasons after, and 20% three seasons after, as applicable
+* Similarly increases friendship bonus by same percentages based on time since growth season 
 
 ## Requirements
 [SMAPI](https://github.com/Pathoschild/SMAPI/releases) 1.15 or above.
@@ -11,9 +15,12 @@ Copy the [bin/Seasonal_Items](/Seasonal_Items/bin/Seasonal_Items) folder to your
 ### Developer 
 Open the repository in your IDE of choice and build.
 
-## Use
-By default, the mod updates the price values of items as they go into your inventory, but it also updates the price values of all items in all chests once a month on the 1st.
+## Compatibility
+Should generally be compatible with any mod that doesn't affect crop prices, excepting a minor bug with the following:
 
-Thus if you use a UI mod that shows you item prices, you may notice inconsistencies between inventory items and chest items. 
+### UI Mods that show item prices
+You may notice discrepencies between chest item prices and inventory item prices if you install the mod on an existing game.
 
-Placing these items in your inventory will update the prices accordingly, but you can also place a **stone in your fridge** to auto-trigger the price update for all items on the next day, regardless of whether it is the 1st.
+To fix this, put a **stone** in your fridge. The next day, all the chest items should be updated. (You can then take the stone out of the fridge.)
+
+You can also just manually grab chest items then put them back to update the values.

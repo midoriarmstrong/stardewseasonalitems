@@ -16,7 +16,9 @@ namespace SeasonalItems
     public class ModEntry : Mod
     {
         private static string[][] SeasonalItems = { Constants.Spring, Constants.Summer, Constants.Fall, Constants.Winter };
-        private Dictionary<string, int> cache;
+        private Dictionary<string, int> priceCache;
+        private Dictionary<string, List<string>> seasonsCache;
+        private Dictionary<string, int[]> giftsGiven;
         private string currSeason;
         private string prevSeason;
         private string prevPrevSeason;
@@ -28,9 +30,13 @@ namespace SeasonalItems
         /// <param name="helper">Provides simplified APIs for writing mods.</param>
         public override void Entry(IModHelper helper)
         {
-            cache = new Dictionary<string, int>();
+            priceCache = new Dictionary<string, int>();
+            seasonsCache = new Dictionary<string, List<string>>();
+            giftsGiven = new Dictionary<string, int[]>();
+
             TimeEvents.AfterDayStarted += TimeEvents_AfterDayStarted;
             PlayerEvents.InventoryChanged += PlayerEvents_InventoryChanged;
+            SaveEvents.AfterReturnToTitle += SaveEvents_Clear;
         }
 
         /*********
@@ -43,14 +49,73 @@ namespace SeasonalItems
         private void PlayerEvents_InventoryChanged(object sender, EventArgsInventoryChanged e)
         {
             // If the save is ready and a new item has been added to the inventory
-            if (Context.IsWorldReady && e.Added.Count != 0)
+            if (Context.IsWorldReady)
             {
-                // For each item that has been added to the inventory, adjust its price if necessary
-                foreach (ItemStackChange item in e.Added)
+                // If there are added items, update their price
+                if (e.Added.Count != 0)
                 {
-                    UpdatePriceBasedOnSeason(item.Item);
+                    // For each item that has been added, adjust its price if necessary
+                    foreach (ItemStackChange item in e.Added)
+                    {
+                        UpdatePriceBasedOnSeason(item.Item);
+                    }
+                }
+
+                // If only one item (or item stack) has been removed, update friendships
+                if (e.Removed.Count == 1)
+                {
+                    Item removedItem = e.Removed.First().Item;
+                    List<string> seasons = inSeasonFor(removedItem);
+                    double multiplier = GetSeasonalMultiplier((SObj)removedItem, seasons);
+
+                    // If the item was not a seasonal item or is in season, return
+                    if (multiplier == 1) return;
+
+                    // Check to see if any NPCs have been given a new gift
+                    foreach (KeyValuePair<string, int[]> NPC in Game1.player.friendships)
+                    {
+                        if (NPC.Key == null || NPC.Value == null) continue;
+
+                        // If NPC is a new friend
+                        if (!giftsGiven.ContainsKey(NPC.Key))
+                        {
+                            giftsGiven[NPC.Key] = new int[] { NPC.Value[0], NPC.Value[1] };
+                            if (NPC.Value[0] <= 0) return; // Only add bonus if friendship was gained
+
+                            Game1.player.changeFriendship((int)((NPC.Value[0] * (multiplier - 1))), Game1.getCharacterFromName(NPC.Key));
+                            break;
+                        }
+
+                        // If NPC has been given a new gift
+                        if (giftsGiven[NPC.Key][1] < NPC.Value[1])
+                        {
+                            int diff = NPC.Value[0] - giftsGiven[NPC.Key][0];
+                            giftsGiven[NPC.Key][0] = NPC.Value[0];
+                            giftsGiven[NPC.Key][1] = NPC.Value[1];
+
+                            if (diff <= 0) return; // Only add the bonus if gift was not disliked/hated
+                            
+                            Game1.player.changeFriendship((int)((diff * (multiplier - 1))), Game1.getCharacterFromName(NPC.Key));
+                            break; // You can't give gifts to more than one person at a time
+                        }
+                    }
                 }
             }
+        }
+
+        /// <summary>Clears all caches on return to title.</summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void SaveEvents_Clear(object sender, EventArgs e)
+        {
+            Clear();
+        }
+
+        /// <summary>Clears all caches.</summary>
+        private void Clear()
+        {
+            priceCache.Clear();
+            seasonsCache.Clear();
         }
 
         /// <summary>Checks if a new season has started every day and updates prices if it has.</summary>
@@ -61,6 +126,13 @@ namespace SeasonalItems
             // if save is loaded
             if (Context.IsWorldReady)
             {
+                giftsGiven.Clear();
+                foreach (KeyValuePair<string, int[]> NPC in Game1.player.friendships)
+                {
+                    if (NPC.Key == null || NPC.Value == null) continue;
+                    giftsGiven[NPC.Key] = new int[] { NPC.Value[0], NPC.Value[1] };
+                }
+                
                 SDate currDate = SDate.Now();
                 currSeason = currDate.Season;
                 prevSeason = GetPrevSeason(currSeason);
@@ -85,7 +157,7 @@ namespace SeasonalItems
                 if (currDate.Day == 1 || hasStone)
                 {
                     // Remove outdated cache
-                    cache.Clear();
+                    Clear();
 
                     // Update inventory item prices
                     List<Item> items = Game1.player.items;
@@ -126,6 +198,55 @@ namespace SeasonalItems
             return Constants.SeasonOrder[index];
         }
 
+        /// <summary>Gets the multiplier for prices/friendship based on the season.</summary>
+        /// <param name="obj">Item to calculate multiplier for.</param>
+        /// <param name="seasons">Seasons for item.</param>
+        /// <returns>Multiplier value</returns>
+        private double GetSeasonalMultiplier(SObj obj, List<string> seasons)
+        {
+            if (seasons.Count == 0 || seasons.Contains(currSeason)) return 1;
+            if (seasons.Contains(prevSeason)) return 1.1;
+            if (seasons.Contains(prevPrevSeason)) return 1.15;
+
+            return 1.25;
+        }
+
+        /// <summary>Finds the seasons where an Item is in season for.</summary>
+        /// <param name="item">Item to check.</param>
+        /// <returns>List of in-season seasons.</returns>
+        private List<string> inSeasonFor(Item item)
+        {
+            if (seasonsCache.ContainsKey(item.Name)) return seasonsCache[item.Name];
+
+            List<string> seasons = new List<string>();
+
+            if (IsSObj(item))
+            {
+                SObj obj = (SObj)item;
+                int count = 0;
+
+                // Check to see which seasons the item can be found in
+                foreach (string[] items in SeasonalItems)
+                {
+                    if (items.Contains(obj.Name)) seasons.Add(Constants.SeasonOrder[count]);
+                    count++;
+                }
+            }
+
+            seasonsCache[item.Name] = seasons;
+            return seasons;
+        }
+
+        /// <summary>Checks whether an Item is a StardewValley.Object that can be casted as a SObj.</summary>
+        /// <param name="item">Item to check</param>
+        /// <returns>Whether it is not an SObj.</returns>
+        private bool IsSObj(Item item)
+        {
+            if (item == null || (item.GetType() != typeof(SObj) && item.GetType() != typeof(ColoredObject)))
+                return false;
+            return true;
+        }
+ 
         /// <summary>Updates all items in chests in a location to have season-appropriate pricing.</summary>
         /// <param name="location">A GameLocation</param>
         private void UpdateChestsInLocation(GameLocation location)
@@ -150,60 +271,25 @@ namespace SeasonalItems
         /// <param name="item">The item to update.</param>
         private void UpdatePriceBasedOnSeason(Item item)
         {
-            if (item == null || (item.GetType() != typeof(SObj) && item.GetType() != typeof(ColoredObject))) return;
+            if (!IsSObj(item)) return; // Return if item is not a StardewValley.Object
 
             SObj obj = (SObj)item;
             string cacheKey = obj.Name + obj.quality;
 
             // If item is cached, update based on cached value
-            if (cache.ContainsKey(cacheKey))
+            if (priceCache.ContainsKey(cacheKey))
             {
-                obj.Price = cache[cacheKey];
+                obj.Price = priceCache[cacheKey];
                 return;
-            }
-
-            List<string> seasons = new List<string>();
-            int count = 0;
-
-            // Check to see which seasons the item can be found in
-            foreach (string[] items in SeasonalItems)
-            {
-                if (Array.IndexOf(items, obj.Name) > -1) seasons.Add(Constants.SeasonOrder[count]);
-                count++;
             }
 
             // Revert to original price temporarily
             SObj baseObj = new SObj(item.parentSheetIndex, 1, false, -1, obj.quality);
             obj.Price = baseObj.Price;
 
-            // If it is not a seasonal item or is in season, do not adjust price
-            if (seasons.Count == 4 || seasons.Count == 0 || seasons.Contains(currSeason))
-            {
-                cache[cacheKey] = obj.Price;
-                return;
-            }
-
-            double price = obj.Price;
-
-            // Increase price by 10% if in season previous season
-            if (seasons.Contains(prevSeason))
-            {
-                price *= 1.1;
-
-                // Increase price by 15% if in season two seasons ago
-            }
-            else if (seasons.Contains(prevPrevSeason))
-            {
-                price *= 1.15;
-
-                // Else increase price by 20% (in season three seasons ago)
-            }
-            else
-            {
-                price *= 1.2;
-            }
-
-            cache[cacheKey] = (int)price;
+            // Calculate new price
+            double price = obj.Price * GetSeasonalMultiplier(obj, inSeasonFor(item));
+            priceCache[cacheKey] = (int)price;
             obj.Price = (int)price;
         }
     }
