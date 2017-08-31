@@ -6,7 +6,7 @@ Adjusts sell prices of seasonal items based on whether they are in season.
 
 ## Installation 
 ### Normal Player
-Copy the files in [bin](/bin/Release) to your Stardew Valley/Mods folder, then run Stardew Valley with SMAPI. It should run out of the box.
+Copy the [bin/Seasonal_Items](/bin/Seasonal_Items) folder to your Stardew Valley/Mods folder, then run Stardew Valley with SMAPI. It should run out of the box.
 
 ### Developer 
 Open the repository in your IDE of choice and build.
